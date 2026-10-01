@@ -6,6 +6,11 @@ from app.core.exceptions import DatabaseException
 from app.database import get_db
 from app.models.product import Product
 
+import logging
+
+logger = logging.getLogger(__name__)
+logger.info("Testing product route logging")
+
 router = APIRouter(
     prefix="/products",
     tags=["Products"]

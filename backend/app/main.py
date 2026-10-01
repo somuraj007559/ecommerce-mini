@@ -6,6 +6,16 @@ from app.core.handlers import app_exception_handler, general_exception_handler
 from app.routers.orders import router as order_router
 from app.routers.products import router as product_router
 
+from app.core.logging import setup_logging
+import logging
+
+setup_logging()
+logger = logging.getLogger(__name__)
+
+logger.info("This is an INFO message")
+logger.warning("This is a WARNING message")
+logger.error("This is an ERROR message")
+
 app = FastAPI(title="MiniShop API")
 
 app.add_middleware(
