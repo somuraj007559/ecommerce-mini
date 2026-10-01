@@ -291,7 +291,43 @@ export default function Dashboard() {
 
           {/* Cart Body */}
           <div className="flex-grow overflow-y-auto p-6 scrollbar-hide relative">
-            {cart.length === 0 ? (
+            {order ? (
+              <div className="h-full flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
+                <div className="w-full rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-6 space-y-4 relative overflow-hidden shadow-2xl shadow-emerald-500/5">
+                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none"></div>
+                  
+                  <div className="flex flex-col items-center justify-center text-center mb-6">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                    <h3 className="font-black text-white text-2xl mb-1">Order Confirmed!</h3>
+                    <p className="font-medium text-emerald-400">{order.message}</p>
+                  </div>
+
+                  <div className="bg-slate-900/60 rounded-xl p-5 space-y-3 text-sm border border-white/5 backdrop-blur-sm">
+                    <div className="flex justify-between text-slate-400"><span className="text-slate-500">Order ID</span> <span className="font-mono text-slate-300">{order.order_id}</span></div>
+                    <div className="flex justify-between text-slate-400"><span className="text-slate-500">Subtotal</span> <span>{money(order.subtotal)}</span></div>
+                    <div className="flex justify-between text-slate-400"><span className="text-slate-500">Discount</span> <span className="text-emerald-400">{money(order.discount)}</span></div>
+                    <div className="flex justify-between text-slate-400"><span className="text-slate-500">Tax</span> <span>{money(order.tax)}</span></div>
+                    <div className="flex justify-between text-slate-400"><span className="text-slate-500">Shipping</span> <span>{money(order.shipping_charge)}</span></div>
+                    <div className="pt-3 mt-3 border-t border-white/10 flex justify-between font-black text-white text-lg">
+                      <span>Total Paid</span>
+                      <span className="text-emerald-400">{money(order.grand_total)}</span>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      setOrder(null);
+                      setCartOpen(false);
+                    }}
+                    className="w-full mt-6 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 py-3.5 rounded-xl font-bold text-base transition-colors border border-emerald-500/30"
+                  >
+                    Continue Shopping
+                  </button>
+                </div>
+              </div>
+            ) : cart.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4">
                 <div className="w-24 h-24 rounded-full bg-slate-800/50 flex items-center justify-center mb-4">
                   <svg className="w-12 h-12 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
@@ -349,33 +385,10 @@ export default function Dashboard() {
               </ul>
             )}
 
-            {orderError && (
+            {!order && orderError && (
               <div className="mt-8 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex gap-3">
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 <p>{orderError}</p>
-              </div>
-            )}
-
-            {order && (
-              <div className="mt-8 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 p-5 space-y-3 relative overflow-hidden">
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  </div>
-                  <p className="font-bold text-emerald-400 text-lg">{order.message}</p>
-                </div>
-                <div className="bg-slate-900/50 rounded-xl p-4 space-y-2 text-sm border border-white/5">
-                  <div className="flex justify-between text-slate-400"><span className="text-slate-500">Order ID</span> <span className="font-mono text-slate-300">{order.order_id}</span></div>
-                  <div className="flex justify-between text-slate-400"><span className="text-slate-500">Subtotal</span> <span>{money(order.subtotal)}</span></div>
-                  <div className="flex justify-between text-slate-400"><span className="text-slate-500">Discount</span> <span className="text-emerald-400">{money(order.discount)}</span></div>
-                  <div className="flex justify-between text-slate-400"><span className="text-slate-500">Tax</span> <span>{money(order.tax)}</span></div>
-                  <div className="flex justify-between text-slate-400"><span className="text-slate-500">Shipping</span> <span>{money(order.shipping_charge)}</span></div>
-                  <div className="pt-2 mt-2 border-t border-white/10 flex justify-between font-bold text-white text-base">
-                    <span>Grand total</span>
-                    <span className="text-emerald-400">{money(order.grand_total)}</span>
-                  </div>
-                </div>
               </div>
             )}
           </div>
