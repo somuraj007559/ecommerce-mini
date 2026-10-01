@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.exceptions import DatabaseException
 from app.database import get_db
 from app.models.product import Product
 
@@ -21,7 +23,11 @@ def product_response(product: Product):
 
 @router.get("/")
 def get_products(db: Session = Depends(get_db)):
-    products = db.query(Product).order_by(Product.id).all()
+    try:
+        products = db.query(Product).order_by(Product.id).all()
+    except SQLAlchemyError:
+        db.rollback()
+        raise DatabaseException("Unable to fetch products")
     return [product_response(product) for product in products]
 
 @router.get("/{product_id}")
