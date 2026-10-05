@@ -2,6 +2,7 @@ import ijson
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -11,6 +12,7 @@ from app.models.product import Product
 from app.core.exceptions import DatabaseException, DataProcessingException
 
 logger = logging.getLogger(__name__)
+BATCH_SIZE = 100
 
 router = APIRouter(
     prefix="/products",
@@ -41,6 +43,15 @@ async def import_products(
     success_count = 0
     error_count = 0
     errors = []
+    batch = []
+
+    def save_batch():
+        if not batch:
+            return
+        db.execute(insert(Product), batch)
+        db.commit()
+        logger.info(f"Committed {success_count} products...")
+        batch.clear()
 
     try:
         objects = ijson.items(file.file, "item")  # type: ignore[reportCallIssue]
@@ -50,27 +61,24 @@ async def import_products(
                 if not data.get("name") or data.get("price") is None:
                     raise ValueError("name and price are required")
 
-                product = Product(
-                    name=data["name"],
-                    price=data["price"],
-                    stock=data.get("stock", 0),
-                    description=data.get("description"),
-                    image=data.get("image")
-                )
-
-                db.add(product)
+                batch.append({
+                    "name": data["name"],
+                    "price": data["price"],
+                    "stock": data.get("stock", 0),
+                    "description": data.get("description"),
+                    "image": data.get("image"),
+                })
                 success_count += 1
 
-                if success_count % 100 == 0:
-                    db.commit()
-                    logger.info(f"Committed {success_count} products...")
+                if len(batch) == BATCH_SIZE:
+                    save_batch()
 
             except (ValueError, KeyError, TypeError) as e:
                 error_count += 1
                 errors.append(f"Item {index}: {str(e)}")
                 logger.warning(f"Skipping item {index}: {str(e)}")
 
-        db.commit()
+        save_batch()
         logger.info(f"Import finished → Success: {success_count}, Failed: {error_count}")
 
     except SQLAlchemyError as e:
