@@ -2,17 +2,28 @@ import ijson
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy import insert
+from pydantic import ValidationError
+from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import get_db
 from app.services.product_service import get_product, list_products
 from app.models.product import Product
+from app.schemas.schemas import ProductCreate
 from app.core.exceptions import DatabaseException, DataProcessingException
 
 logger = logging.getLogger(__name__)
 BATCH_SIZE = 100
+
+
+def _format_validation_error(error: ValidationError) -> str:
+    # "price: Input should be greater than 0" maari user ku puriyura message
+    messages = []
+    for detail in error.errors():
+        field = ".".join(str(part) for part in detail["loc"]) or "item"
+        messages.append(f"{field}: {detail['msg']}")
+    return "; ".join(messages)
 
 router = APIRouter(
     prefix="/products",
@@ -54,20 +65,24 @@ async def import_products(
         batch.clear()
 
     try:
+        # "Pen" and "pen " same product ah eduthukrom, so lower case la compare panrom
+        seen_names = set(db.scalars(select(func.lower(Product.name))).all())
+
         objects = ijson.items(file.file, "item")  # type: ignore[reportCallIssue]
 
         for index, data in enumerate(objects, start=1):
             try:
-                if not data.get("name") or data.get("price") is None:
-                    raise ValueError("name and price are required")
+                try:
+                    product = ProductCreate.model_validate(data)
+                except ValidationError as e:
+                    raise ValueError(_format_validation_error(e))
 
-                batch.append({
-                    "name": data["name"],
-                    "price": data["price"],
-                    "stock": data.get("stock", 0),
-                    "description": data.get("description"),
-                    "image": data.get("image"),
-                })
+                name_key = product.name.lower()
+                if name_key in seen_names:
+                    raise ValueError(f"duplicate product name '{product.name}'")
+                seen_names.add(name_key)
+
+                batch.append(product.model_dump())
                 success_count += 1
 
                 if len(batch) == BATCH_SIZE:
