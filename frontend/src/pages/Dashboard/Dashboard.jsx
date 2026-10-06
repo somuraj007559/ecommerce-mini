@@ -6,11 +6,133 @@ import bannerImg from '../../assets/images/banner.jpg' // Fallback image since b
 function imageUrl(image) {
   if (!image) return ''
   if (image.startsWith('http://') || image.startsWith('https://')) return image
+  if (image.startsWith('/')) return `${API}${image}`
   return ''
 }
 
 function money(value) {
   return `₹${Number(value).toLocaleString('en-IN')}`
+}
+
+function ReportCards({ title, data, loading, error, isTopInventory }) {
+  if (loading) {
+    return (
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-white mb-4">{title}</h3>
+        <div className="flex animate-pulse space-x-4">
+          <div className="h-28 w-64 bg-slate-800/50 rounded-2xl"></div>
+          <div className="h-28 w-64 bg-slate-800/50 rounded-2xl"></div>
+        </div>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-white mb-4">{title}</h3>
+        <div className="text-red-400 bg-red-500/10 p-4 rounded-xl inline-block">{error}</div>
+      </div>
+    )
+  }
+  if (!data || data.length === 0) {
+    return (
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-white mb-4">{title}</h3>
+        <p className="text-slate-400">No data</p>
+      </div>
+    )
+  }
+  
+  return (
+    <div className="mb-12">
+      <h3 className="text-2xl font-bold text-white mb-6">{title}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {data.map((item) => (
+          <div key={item.id} className="bg-slate-900/60 border border-white/5 rounded-2xl p-4 flex gap-4 items-center">
+            <div className="w-20 h-20 shrink-0 bg-slate-800 rounded-xl overflow-hidden">
+              {imageUrl(item.image) ? (
+                <img src={imageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">No Img</div>
+              )}
+            </div>
+            <div className="flex flex-col justify-center overflow-hidden">
+              <h4 className="text-white font-semibold truncate text-sm mb-1">{item.name}</h4>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-blue-400 font-bold text-sm">{money(item.price)}</span>
+                {isTopInventory ? (
+                  <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-medium">
+                    Val: {money(item.inventory_value)}
+                  </span>
+                ) : (
+                  <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded font-medium">
+                    Stock: {item.stock}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CategorySummaryTable({ data, loading, error }) {
+  if (loading) {
+    return (
+      <div className="mb-8 animate-pulse">
+        <h3 className="text-2xl font-bold text-white mb-4">Category summary</h3>
+        <div className="h-48 w-full max-w-4xl bg-slate-800/50 rounded-2xl"></div>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-white mb-4">Category summary</h3>
+        <div className="text-red-400 bg-red-500/10 p-4 rounded-xl inline-block">{error}</div>
+      </div>
+    )
+  }
+  if (!data || data.length === 0) {
+    return (
+      <div className="mb-8">
+        <h3 className="text-2xl font-bold text-white mb-4">Category summary</h3>
+        <p className="text-slate-400">No data</p>
+      </div>
+    )
+  }
+  
+  return (
+    <div className="mb-12">
+      <h3 className="text-2xl font-bold text-white mb-6">Category summary</h3>
+      <div className="overflow-x-auto bg-slate-900/60 border border-white/5 rounded-2xl max-w-4xl">
+        <table className="w-full text-left text-sm whitespace-nowrap">
+          <thead className="bg-slate-800/50 text-slate-300 border-b border-white/5">
+            <tr>
+              <th className="p-4 font-semibold">Category</th>
+              <th className="p-4 font-semibold">Products</th>
+              <th className="p-4 font-semibold">Total stock</th>
+              <th className="p-4 font-semibold">Avg price</th>
+              <th className="p-4 font-semibold">Inventory value</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {data.map((row, i) => (
+              <tr key={i} className="hover:bg-white/5 transition-colors text-slate-300">
+                <td className="p-4 font-medium text-white">{row.category}</td>
+                <td className="p-4">{row.product_count}</td>
+                <td className="p-4">{row.total_stock}</td>
+                <td className="p-4">{money(row.avg_price)}</td>
+                <td className="p-4 text-emerald-400">{money(row.inventory_value)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 }
 
 export default function Dashboard() {
@@ -25,6 +147,11 @@ export default function Dashboard() {
   const [placing, setPlacing] = useState(false)
   const [order, setOrder] = useState(null)
   const [orderError, setOrderError] = useState('')
+  const [activeView, setActiveView] = useState('products')
+
+  const [lowStock, setLowStock] = useState({ data: [], loading: false, error: '' })
+  const [topInventory, setTopInventory] = useState({ data: [], loading: false, error: '' })
+  const [categorySummary, setCategorySummary] = useState({ data: [], loading: false, error: '' })
 
   const loadProducts = async () => {
     setLoading(true)
@@ -39,6 +166,33 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchLowStock = () => {
+    setLowStock(prev => ({ ...prev, loading: true }))
+    fetch(`${API}/products/low-stock?threshold=10`)
+      .then(res => { if (!res.ok) throw new Error('Failed to load low stock'); return res.json() })
+      .then(data => setLowStock({ data, loading: false, error: '' }))
+      .catch(err => setLowStock({ data: [], loading: false, error: err.message }))
+  }
+
+  const fetchTopInventory = () => {
+    setTopInventory(prev => ({ ...prev, loading: true }))
+    fetch(`${API}/reports/inventory?max_price=100000`)
+      .then(res => { if (!res.ok) throw new Error('Failed to load inventory'); return res.json() })
+      .then(data => {
+        const top3 = Array.isArray(data) ? data.slice(0, 3) : []
+        setTopInventory({ data: top3, loading: false, error: '' })
+      })
+      .catch(err => setTopInventory({ data: [], loading: false, error: err.message }))
+  }
+
+  const fetchCategorySummary = () => {
+    setCategorySummary(prev => ({ ...prev, loading: true }))
+    fetch(`${API}/reports/category-summary`)
+      .then(res => { if (!res.ok) throw new Error('Failed to load category summary'); return res.json() })
+      .then(data => setCategorySummary({ data, loading: false, error: '' }))
+      .catch(err => setCategorySummary({ data: [], loading: false, error: err.message }))
   }
 
   useEffect(() => {
@@ -163,102 +317,152 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="flex justify-between items-end mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 mt-12 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-white mb-1">Discover Products</h2>
             <p className="text-slate-400">Explore our premium collection of unique items.</p>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => { setActiveView('products'); loadProducts(); }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                activeView === 'products' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              All Products
+            </button>
+            <button
+              onClick={() => { setActiveView('low-stock'); fetchLowStock(); }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                activeView === 'low-stock' ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              Low Stock
+            </button>
+            <button
+              onClick={() => { setActiveView('top-inventory'); fetchTopInventory(); }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                activeView === 'top-inventory' ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              Top Inventory
+            </button>
+            <button
+              onClick={() => { setActiveView('category-summary'); fetchCategorySummary(); }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                activeView === 'category-summary' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              Categories
+            </button>
+          </div>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-6 rounded-2xl text-center backdrop-blur-md mb-8">
-            <svg className="w-12 h-12 mx-auto mb-3 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            <p className="font-medium">{error}</p>
-          </div>
+        {activeView === 'low-stock' && (
+          <ReportCards title="Low stock" data={lowStock.data} loading={lowStock.loading} error={lowStock.error} />
         )}
 
-        {loading && products.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-              <div key={n} className="bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
-                <div className="w-full h-56 bg-slate-800/50"></div>
-                <div className="p-6">
-                  <div className="h-5 bg-slate-800/80 rounded w-3/4 mb-4"></div>
-                  <div className="h-3 bg-slate-800/50 rounded w-full mb-2"></div>
-                  <div className="h-3 bg-slate-800/50 rounded w-5/6 mb-6"></div>
-                  <div className="flex justify-between items-center mt-2">
-                    <div className="h-6 bg-slate-800/80 rounded w-1/3"></div>
-                    <div className="h-9 bg-slate-800/80 rounded-xl w-24"></div>
-                  </div>
-                </div>
+        {activeView === 'top-inventory' && (
+          <ReportCards title="Top inventory" data={topInventory.data} loading={topInventory.loading} error={topInventory.error} isTopInventory={true} />
+        )}
+
+        {activeView === 'category-summary' && (
+          <CategorySummaryTable data={categorySummary.data} loading={categorySummary.loading} error={categorySummary.error} />
+        )}
+
+        {activeView === 'products' && (
+          <>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-6 rounded-2xl text-center backdrop-blur-md mb-8">
+                <svg className="w-12 h-12 mx-auto mb-3 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <p className="font-medium">{error}</p>
               </div>
-            ))}
-          </div>
-        ) : !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
-            {products.map((product) => {
-              const inCart = cart.find((item) => item.product.id === product.id)
-              const qty = inCart ? inCart.quantity : 0
-              const src = imageUrl(product.image)
-              return (
-                <div
-                  key={product.id}
-                  className="group bg-slate-900/60 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/40 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-blue-500/10 transition-all duration-500 hover:-translate-y-2 flex flex-col relative"
-                >
-                  {/* Stock Badge */}
-                  {product.stock > 0 && product.stock <= 5 && (
-                    <div className="absolute top-3 left-3 z-20 bg-orange-500/90 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
-                      Only {product.stock} left
+            )}
+
+            {loading && products.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <div key={n} className="bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden animate-pulse">
+                    <div className="w-full h-56 bg-slate-800/50"></div>
+                    <div className="p-6">
+                      <div className="h-5 bg-slate-800/80 rounded w-3/4 mb-4"></div>
+                      <div className="h-3 bg-slate-800/50 rounded w-full mb-2"></div>
+                      <div className="h-3 bg-slate-800/50 rounded w-5/6 mb-6"></div>
+                      <div className="flex justify-between items-center mt-2">
+                        <div className="h-6 bg-slate-800/80 rounded w-1/3"></div>
+                        <div className="h-9 bg-slate-800/80 rounded-xl w-24"></div>
+                      </div>
                     </div>
-                  )}
-
-                  <div className="w-full h-56 relative overflow-hidden bg-slate-800/50 flex items-center justify-center group-hover:bg-slate-800 transition-colors">
-                    {src ? (
-                      <img
-                        src={src}
-                        alt={product.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
-                        <svg className="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <span className="text-sm font-medium">{product.name}</span>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent opacity-80"></div>
                   </div>
+                ))}
+              </div>
+            ) : !error && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                {products.map((product) => {
+                  const inCart = cart.find((item) => item.product.id === product.id)
+                  const qty = inCart ? inCart.quantity : 0
+                  const src = imageUrl(product.image)
+                  return (
+                    <div
+                      key={product.id}
+                      className="group bg-slate-900/60 backdrop-blur-sm border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/40 hover:shadow-[0_8px_30px_rgb(0,0,0,0.5)] hover:shadow-blue-500/10 transition-all duration-500 hover:-translate-y-2 flex flex-col relative"
+                    >
+                      {/* Stock Badge */}
+                      {product.stock > 0 && product.stock <= 5 && (
+                        <div className="absolute top-3 left-3 z-20 bg-orange-500/90 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+                          Only {product.stock} left
+                        </div>
+                      )}
 
-                  <div className="p-6 flex flex-col flex-grow relative z-10 -mt-6 bg-gradient-to-b from-transparent to-slate-900/90 rounded-b-2xl">
-                    <h3 className="font-bold text-lg text-white mb-2 group-hover:text-blue-400 transition-colors mt-3">{product.name}</h3>
-                    <p className="text-slate-400 text-sm mb-4 line-clamp-2 flex-grow">{product.description}</p>
-                    
-                    <div className="mt-auto flex justify-between items-center pt-4 border-t border-white/5">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-slate-500 font-medium mb-1">Price</span>
-                        <span className="text-blue-400 font-black text-xl tracking-tight">
-                          {money(product.price)}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => addToCart(product)}
-                        disabled={product.stock === 0 || qty >= product.stock}
-                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.23)] hover:-translate-y-0.5 disabled:translate-y-0 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:shadow-none disabled:border border-white/5 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        {product.stock === 0 ? (
-                          'Out of stock'
+                      <div className="w-full h-56 relative overflow-hidden bg-slate-800/50 flex items-center justify-center group-hover:bg-slate-800 transition-colors">
+                        {src ? (
+                          <img
+                            src={src}
+                            alt={product.name}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
+                          />
                         ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                            Add
-                          </>
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                            <svg className="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <span className="text-sm font-medium">{product.name}</span>
+                          </div>
                         )}
-                      </button>
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent opacity-80"></div>
+                      </div>
+
+                      <div className="p-6 flex flex-col flex-grow relative z-10 -mt-6 bg-gradient-to-b from-transparent to-slate-900/90 rounded-b-2xl">
+                        <h3 className="font-bold text-lg text-white mb-2 group-hover:text-blue-400 transition-colors mt-3">{product.name}</h3>
+                        <p className="text-slate-400 text-sm mb-4 line-clamp-2 flex-grow">{product.description}</p>
+                        
+                        <div className="mt-auto flex justify-between items-center pt-4 border-t border-white/5">
+                          <div className="flex flex-col">
+                            <span className="text-xs text-slate-500 font-medium mb-1">Price</span>
+                            <span className="text-blue-400 font-black text-xl tracking-tight">
+                              {money(product.price)}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => addToCart(product)}
+                            disabled={product.stock === 0 || qty >= product.stock}
+                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.23)] hover:-translate-y-0.5 disabled:translate-y-0 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 disabled:shadow-none disabled:border border-white/5 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {product.stock === 0 ? (
+                              'Out of stock'
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                Add
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
         )}
       </main>
 
