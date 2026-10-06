@@ -3,7 +3,7 @@ from fastapi import APIRouter, Query
 from sqlalchemy import text
 
 from app.db import engine
-from app.services.cleaning import category_table, clean_products, to_json_safe
+from app.services.cleaning import CATEGORY_MAP, clean_products, to_json_safe
 
 router = APIRouter(tags=["Reports"])
 
@@ -32,10 +32,12 @@ def low_stock(threshold: int = Query(10, ge=0)):
 @router.get("/reports/inventory")
 def inventory_report(max_price: float = Query(100000, ge=0)):
     # Exclude products above max_price in SQL.
+    # Read rows in id order so nlargest keeps the smaller id first on a tie.
     sql = """
         SELECT id, name, description, price, image, stock
         FROM products
         WHERE price <= :max_price
+        ORDER BY id
     """
     products = _read_products(sql, {"max_price": max_price})
     products = clean_products(products)
@@ -43,36 +45,30 @@ def inventory_report(max_price: float = Query(100000, ge=0)):
     # Inventory value for one product is price * stock.
     products["inventory_value"] = products["price"] * products["stock"]
 
-    # Keep only the 3 products with the highest inventory value.
-    top_products = products.sort_values(
-        by=["inventory_value", "id"],
-        ascending=[False, True],
-    ).head(3)
+    # Keep the 3 products with the highest inventory value. Ties keep id order.
+    top_products = products.nlargest(3, "inventory_value")
 
     return to_json_safe(top_products)
 
 
 @router.get("/reports/category-summary")
 def category_summary():
+    # The category report only needs name, price, and stock.
     sql = """
-        SELECT id, name, description, price, image, stock
+        SELECT id, name, price, stock
         FROM products
     """
     products = _read_products(sql)
     products = clean_products(products)
 
-    # Category data is a separate DataFrame. Merge it with products on name.
-    categories = category_table()
-    merged = products.merge(categories, on="name", how="left")
-
-    # Products missing from the category map become "Other".
-    merged["category"] = merged["category"].fillna("Other")
-    merged["inventory_value"] = merged["price"] * merged["stock"]
+    # Look up the category from the dictionary. Unmapped names become "Other".
+    products["category"] = products["name"].map(lambda name: CATEGORY_MAP.get(name, "Other")).astype("category")
+    products["inventory_value"] = products["price"] * products["stock"]
 
     # Per category: count, total stock, average price, and inventory value.
-    # Wrap the groupby result as a DataFrame so column updates type-check.
+    # observed=True returns only categories present in the data.
     summary = pd.DataFrame(
-        merged.groupby("category", as_index=False).agg(
+        products.groupby("category", as_index=False, observed=True).agg(
             product_count=("name", "count"),
             total_stock=("stock", "sum"),
             avg_price=("price", "mean"),
